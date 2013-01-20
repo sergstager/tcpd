@@ -11,8 +11,10 @@ int main(int argc, char *argv[]) {
   memset(&daemon_config, 0, sizeof(daemon_config));
   memset(&daemon_pid, 0, sizeof(daemon_pid));
   memset(&daemon_username, 0, sizeof(daemon_username));
+  memset(&daemon_groupname, 0, sizeof(daemon_groupname));
   memset(&daemon_address, 0, sizeof(daemon_address));
   memset(&daemon_exec, 0, sizeof(daemon_exec));
+  memset(&daemon_exec_args, 0, sizeof(daemon_exec_args));
   daemon_port = 999;
   skListener = 0;
 

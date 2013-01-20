@@ -14,6 +14,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pwd.h>
+#include <grp.h>
 #include <libconfig.h>
 
 //  переменные конфига
@@ -22,8 +23,10 @@ char daemon_pid[1024];
 char daemon_workdir[1000]; // к нему в конец будет добавляться шаблон временного файла
 #define TMP_TEMPLATE	"/tdmnXXXXXX"
 char daemon_username[256];
+char daemon_groupname[256];
 char daemon_address[16];
 char daemon_exec[1024];
+char daemon_exec_args[1024];
 int config_status, daemon_port;
 
 // флаг демонистости:
@@ -50,12 +53,45 @@ int skListener;
 #define ER_CANT_READ_CONFIG_USERNAME	7	// не читается username из конфига
 #define ER_CANT_READ_CONFIG_ADDRESS	8	// не читается address из конфига
 #define ER_CANT_READ_CONFIG_PORT	9	// не читается port из конфига
-#define ER_CANT_READ_CONFIG_EXEC	8	// не читается exec из конфига
+#define ER_CANT_READ_CONFIG_EXEC	10	// не читается exec из конфига
+#define ER_CANT_READ_CONFIG_EXEC_ARGS	11	// не читаются аргументы exec из конфига
+#define ER_CANT_READ_CONFIG_GROUPNAME	12	// не читается groupname из конфига
+#define ER_CANT_SETGID		18	// не меняется gid
 #define ER_CANT_SETUID		19	// не меняется uid
 #define ER_CANT_CREATE_SOCKET	20	// не создаётся сокет
 #define ER_CANT_BIND		21	// не биндится сокет
 #define ER_CANT_LISTEN		22	// не прослушивается
 #define ER_CANT_ACCEPT		23	// не цепляется новое соединение
+
+char str_errors[27][1024]= {
+  "all OK",
+  "Can't fork",
+  "Can't setsid",
+  "Can't chdir into work dir",
+  "Can't read config file",
+  "Can't read 'pid' from config file", // 5
+  "Can't read 'workdir' from config file",
+  "Can't read 'username' from config file",
+  "Can't read 'address' from config file",
+  "Can't read 'port' from config file",
+  "Can't read 'exec' from config file", // 10
+  "Can't read 'exec_args' from config file",
+  "Can't read 'groupname' from config file",
+  "",
+  "",
+  "", // 15
+  "",
+  "",
+  "Can't change GID of process",
+  "Can't change UID of process",
+  "Can't create socket", // 20
+  "Can't bind socket",
+  "Can't listen socket",
+  "Can't accept socket",
+  "",
+  "", // 25
+  ""
+};
 
 ///////////////////////////////
 //
@@ -74,7 +110,10 @@ void printUsage(char *argv[]) {
 //  функция завершения демона
 //
 void quit(int err) {
-  if(err) syslog(LOG_WARNING, "quit on %d", err);
+  if(err) {
+    syslog(LOG_WARNING, "error %d: %s", err, str_errors[err]);
+    printf("%s\n", str_errors[err]);
+   }
   if(skListener) {
     shutdown(skListener, SHUT_RDWR);
     close(skListener);
@@ -159,8 +198,10 @@ int parseConfig(char *path) {
   if (!config_getValue(path, "pid", daemon_pid)) return ER_CANT_READ_CONFIG_PID;
   if (!config_getValue(path, "workdir", daemon_workdir)) return ER_CANT_READ_CONFIG_WORKDIR;
   if (!config_getValue(path, "username", daemon_username)) return ER_CANT_READ_CONFIG_USERNAME;
+  if (!config_getValue(path, "groupname", daemon_groupname)) return ER_CANT_READ_CONFIG_GROUPNAME;
   if (!config_getValue(path, "address", daemon_address)) return ER_CANT_READ_CONFIG_ADDRESS;
   if (!config_getValue(path, "exec", daemon_exec)) return ER_CANT_READ_CONFIG_EXEC;
+  if (!config_getValue(path, "exec_args", daemon_exec_args)) return ER_CANT_READ_CONFIG_EXEC_ARGS;
   if (!config_getValue(path, "port", port)) return ER_CANT_READ_CONFIG_PORT;
   daemon_port=atoi(port);
 

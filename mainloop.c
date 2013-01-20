@@ -25,10 +25,14 @@ void mainLoop() {
     quit(ER_CANT_BIND);
    }
 
-  // здесь меняем uid (тк порты ниже 1024 не рут создать не может)
+  // здесь меняем id (тк порты ниже 1024 не рут создать не может)
+  // сначала gid, потомучто потом уже не будет прав
+  struct group *gr = getgrnam(daemon_groupname);
+  if (!gr) quit(ER_CANT_SETGID);
+  if (setregid(gr->gr_gid, gr->gr_gid)) quit(ER_CANT_SETGID);
   struct passwd *pswd = getpwnam(daemon_username);
-  if (pswd) setuid(pswd->pw_uid);
-  else quit(ER_CANT_SETUID);
+  if (!pswd) quit(ER_CANT_SETUID);
+  if (setreuid(pswd->pw_uid, pswd->pw_uid)) quit(ER_CANT_SETUID);
 
   // создаём очередь
   if (-1 == listen(skListener, MAX_CONNECTION)) {
