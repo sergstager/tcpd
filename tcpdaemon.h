@@ -108,44 +108,62 @@ void signalHandler(int sig) {
    }
 }
 
+///////////////////////////////////
+//
+//  выкидывает начальные и конечные пробелы из строки
+//
+char *strtrim(char *s) {
+  int i1 = strlen(s);
+  while (isspace(s[i1 - 1])) --i1;
+  while (*s && isspace(*s)) ++s, --i1;
+  return strndup(s, i1);
+}
+
+///////////////////////////////////
+//
+//  получение значения из конфига
+//
+char *config_getValue(const char *path, const char *key, char *val) {
+  FILE *fd;
+  char str1[1024],str2[1024],s1[1024],s2[1024];
+  int i1 = 0;
+
+  if (fd = fopen(path, "r")) {
+    while (!feof(fd)) {
+      if (fgets(str1, 1000, fd)) {
+        memset(&str2, 0, sizeof(str2));
+        // выкидываем комментарии и перевод строки
+        for(i1 = 0; ((str1[i1]!='#')&&(str1[i1]!='\n')&&(str1[i1]!='\000')&&(i1<sizeof(str1)-1)) ; str2[i1++]=str1[i1]);
+        str2[i1]='\000';
+        memset(&s1, 0, sizeof(s1));
+        memset(&s2, 0, sizeof(s2));
+        // разбираем на две части
+        if (2 == sscanf(str2, "%[ \ta-zA-Z0-9_-/.]=%[ \ta-zA-Z0-9_-/.]", s1, s2)) {
+          // если ключ совпал - возвращаем значение
+          if (!strcmp(key,strtrim(s1))) return strncpy(val,strtrim(s2),strlen(strtrim(s2)));
+         }
+       }
+     }
+    fclose(fd);
+   }
+  return NULL;
+}
+
 ////////////////////////////////
 //
 //  парсинг конфига
 //
 int parseConfig(char *path) {
-  struct config_t cfg;
-  config_setting_t *setting;
-  const char *str;
-  int i1;
-  long l1;
+  char port[32];
 
-  config_init(&cfg);
-  if (!config_read_file(&cfg, path)) {
-    config_destroy(&cfg);
-    return ER_CANT_READ_CONFIG;
-   }
+  if (!config_getValue(path, "pid", daemon_pid)) return ER_CANT_READ_CONFIG_PID;
+  if (!config_getValue(path, "workdir", daemon_workdir)) return ER_CANT_READ_CONFIG_WORKDIR;
+  if (!config_getValue(path, "username", daemon_username)) return ER_CANT_READ_CONFIG_USERNAME;
+  if (!config_getValue(path, "address", daemon_address)) return ER_CANT_READ_CONFIG_ADDRESS;
+  if (!config_getValue(path, "exec", daemon_exec)) return ER_CANT_READ_CONFIG_EXEC;
+  if (!config_getValue(path, "port", port)) return ER_CANT_READ_CONFIG_PORT;
+  daemon_port=atoi(port);
 
-  if (!config_lookup_string(&cfg, "pid", &str)) return ER_CANT_READ_CONFIG_PID;
-  else strncpy(daemon_pid, str, sizeof(daemon_pid)-1);
-
-  if (!config_lookup_string(&cfg, "workdir", &str)) return ER_CANT_READ_CONFIG_WORKDIR;
-  else strncpy(daemon_workdir, str, sizeof(daemon_workdir)-1);
-
-  if (!config_lookup_string(&cfg, "username", &str)) return ER_CANT_READ_CONFIG_USERNAME;
-  else strncpy(daemon_username, str, sizeof(daemon_username)-1);
-
-  if (!config_lookup_string(&cfg, "address", &str)) return ER_CANT_READ_CONFIG_ADDRESS;
-  else strncpy(daemon_address, str, sizeof(daemon_address)-1);
-
-  if (!config_lookup_string(&cfg, "exec", &str)) return ER_CANT_READ_CONFIG_EXEC;
-  else strncpy(daemon_exec, str, sizeof(daemon_exec)-1);
-
-  if (!config_lookup_int(&cfg, "port", &l1)) return ER_CANT_READ_CONFIG_PORT;
-  else {
-    i1 = l1;
-    daemon_port = i1;
-   }
-   
   return 0;
 }
 

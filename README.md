@@ -1,4 +1,0 @@
-tcpd
-====
-
-tcpdaemon
