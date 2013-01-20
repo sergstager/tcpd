@@ -17,5 +17,7 @@ test:	all
 
 t:	all
 	for i in `seq 1 10`  ; do ( cat linux|nc 127.0.0.1 999 -q 1 & ) ; echo -n . ; done
+	sleep 4s
+	ps axjf
 	tail -f /var/log/syslog
 #	time cat /vmlinuz|nc 127.0.0.1 999 -q 1 -vv

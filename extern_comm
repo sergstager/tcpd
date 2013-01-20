@@ -1,0 +1,8 @@
+#!/bin/sh
+
+echo "gotta $@"
+sleep 10s
+
+if [ -f "$1" ] ; then
+  rm -f "$1"
+ fi

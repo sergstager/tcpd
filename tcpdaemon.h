@@ -40,6 +40,9 @@ int skListener;
 // длина очереди
 #define MAX_CONNECTION	5
 
+// максимальное количество аргументов внешней команды
+#define MAX_ARGV_COUNT	10
+
 /////////////////////////////////
 //
 //  коды ошибок
@@ -56,6 +59,7 @@ int skListener;
 #define ER_CANT_READ_CONFIG_EXEC	10	// не читается exec из конфига
 #define ER_CANT_READ_CONFIG_EXEC_ARGS	11	// не читаются аргументы exec из конфига
 #define ER_CANT_READ_CONFIG_GROUPNAME	12	// не читается groupname из конфига
+#define ER_CHILD_FAILED		17	// внешняя команда завершилась с ошибкой
 #define ER_CANT_SETGID		18	// не меняется gid
 #define ER_CANT_SETUID		19	// не меняется uid
 #define ER_CANT_CREATE_SOCKET	20	// не создаётся сокет
@@ -81,7 +85,7 @@ char str_errors[27][1024]= {
   "",
   "", // 15
   "",
-  "",
+  "Child process failed",
   "Can't change GID of process",
   "Can't change UID of process",
   "Can't create socket", // 20
@@ -177,9 +181,10 @@ char *config_getValue(const char *path, const char *key, char *val) {
         memset(&s1, 0, sizeof(s1));
         memset(&s2, 0, sizeof(s2));
         // разбираем на две части
-        if (2 == sscanf(str2, "%[ \ta-zA-Z0-9_-/.]=%[ \ta-zA-Z0-9_-/.]", s1, s2)) {
+        if (2 == sscanf(str2, "%[ \ta-zA-Z0-9_-/.]=%[ \t\%\"\'a-zA-Z0-9_-/.]", s1, s2)) {
           // если ключ совпал - возвращаем значение
           if (!strcmp(key,strtrim(s1))) return strncpy(val,strtrim(s2),strlen(strtrim(s2)));
+          // FIXME течёт память в strtrim
          }
        }
      }

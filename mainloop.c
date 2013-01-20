@@ -95,12 +95,33 @@ void mainLoop() {
       sock_id = -1;
       syslog(LOG_WARNING, "file %s loaded", tmpfn);
       // новый процесс
-//      printf("%s\n", tmpfn);
-      exit(0);
+      // argv[] нового процесса с путём до команды в [0]
+      char *newargv[MAX_ARGV_COUNT];
+      newargv[0] = strdup(daemon_exec);
+
+      char delimiters[] = " \t";
+      char *tmpbuf;
+      int i1 = 1;
+      char *s1;
+
+      s1 = strtok_r(daemon_exec_args, delimiters, &tmpbuf);
+      while ((NULL != s1) && (i1 < (MAX_ARGV_COUNT-1))) {
+        // если встречается "%s", то оно заменяется на имя временного файла
+        if (strcmp("%s", s1)) newargv[i1++] = s1;
+        else newargv[i1++] = strdup(tmpfn);
+        s1 = strtok_r(NULL, delimiters, &tmpbuf);
+       }
+
+      // в конце добавляется NULL и запуск
+      newargv[i1++] = NULL;
+      execvp(daemon_exec, newargv);
+
+      // порождённый процесс внезапно вернулся обратно
+      exit(ER_CHILD_FAILED);
      }
     else {
       // а это в parent'е
-      printf(".");
+      if (!daemonize) printf(".");
       fflush(NULL);
      }
 
