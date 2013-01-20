@@ -16,5 +16,6 @@ test:	all
 	./tcpdaemon -n -c ./tcpdaemon.cfg
 
 t:	all
-	for i in `seq 1 10`  ; do cat /vmlinuz|nc 127.0.0.1 999 -q 1 ; echo -n . ; done
+	for i in `seq 1 10`  ; do ( cat linux|nc 127.0.0.1 999 -q 1 & ) ; echo -n . ; done
+	tail -f /var/log/syslog
 #	time cat /vmlinuz|nc 127.0.0.1 999 -q 1 -vv

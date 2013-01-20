@@ -93,6 +93,7 @@ void mainLoop() {
       shutdown(sock_id, SHUT_RDWR);
       close(sock_id);
       sock_id = -1;
+      syslog(LOG_WARNING, "file %s loaded", tmpfn);
       // новый процесс
 //      printf("%s\n", tmpfn);
       exit(0);
