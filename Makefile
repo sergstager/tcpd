@@ -1,7 +1,7 @@
 all:	tcpdaemon
 
 tcpdaemon:	tcpdaemon.c tcpdaemon.h mainloop.c
-	gcc tcpdaemon.c -o tcpdaemon
+	gcc tcpdaemon.c -o tcpdaemon -Wall
 	strip tcpdaemon
 
 clean:

@@ -9,13 +9,14 @@
 #include <signal.h>
 #include <syslog.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pwd.h>
 #include <grp.h>
-#include <libconfig.h>
+#include <ctype.h>
 
 //  переменные конфига
 char daemon_config[1024];
@@ -171,12 +172,12 @@ char *config_getValue(const char *path, const char *key, char *val) {
   char str1[1024],str2[1024],s1[1024],s2[1024];
   int i1 = 0;
 
-  if (fd = fopen(path, "r")) {
+  if ( (fd = fopen(path, "r")) ) {
     while (!feof(fd)) {
       if (fgets(str1, 1000, fd)) {
         memset(&str2, 0, sizeof(str2));
         // выкидываем комментарии и перевод строки
-        for(i1 = 0; ((str1[i1]!='#')&&(str1[i1]!='\n')&&(str1[i1]!='\000')&&(i1<sizeof(str1)-1)) ; str2[i1++]=str1[i1]);
+        for(i1 = 0; ((str1[i1] != '#') && (str1[i1] != '\n') && (str1[i1] != '\000') && (i1 < sizeof(str1)-1)) ; i1++) str2[i1]=str1[i1];
         str2[i1]='\000';
         memset(&s1, 0, sizeof(s1));
         memset(&s2, 0, sizeof(s2));

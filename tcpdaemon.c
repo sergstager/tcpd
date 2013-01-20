@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
   // ищем конфиг
   // FIXME
   // парсим конфиг
-  if (config_status = parseConfig(daemon_config)) quit(config_status);
+  if ( (config_status = parseConfig(daemon_config)) ) quit(config_status);
 
   // ищем другого демона, уже запущенного
   // FIXME
@@ -76,4 +76,5 @@ int main(int argc, char *argv[]) {
   // в главный цикл
   mainLoop();
   quit(0);
+  return 0;
 }

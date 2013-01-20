@@ -4,7 +4,8 @@
 //
 void mainLoop() {
   struct sockaddr_in addr, naddr;
-  int ns, sock_id;
+  int sock_id;
+  unsigned int ns;
 
   ns = sizeof(naddr);
   // создаём сокет
@@ -68,13 +69,13 @@ void mainLoop() {
       strcpy(tmpfn, daemon_workdir);
       strcat(tmpfn, TMP_TEMPLATE);
       mktemp(tmpfn);
-      if (fd = fopen(tmpfn, "w")) {
+      if ( (fd = fopen(tmpfn, "w")) ) {
         // в цикле читаем и пишем в файл
         for (;;) {
           cntr = recv(sock_id, buf, sizeof(buf)-1, 0);
           if (0 != cntr) {
             if (-1 == fwrite(buf, 1, cntr, fd)) {
-              syslog(LOG_WARNING, "fail write \"%s\" with %s", fd, buf, strerror(errno));
+              syslog(LOG_WARNING, "fail write \"%s\" with %s", buf, strerror(errno));
              }
            }
           if (0 == cntr) break;
@@ -87,7 +88,7 @@ void mainLoop() {
         fclose(fd);
        }
       else {
-        syslog(LOG_WARNING, "fail file %d with %s", fd, strerror(errno));
+        syslog(LOG_WARNING, "fail file %d with %s", (int)fd, strerror(errno));
        }
       // закрываем сокет
       shutdown(sock_id, SHUT_RDWR);
