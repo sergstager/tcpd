@@ -21,9 +21,9 @@ test:	all
 	./tcpdaemon -n -c ./tcpdaemon.cfg
 
 t:	all
-#	./tcpclient -a 127.0.0.1 -p 999 -f linux &
+#	./tcpclient -i 127.0.0.1 -p 999 -f linux &
 #	for i in `seq 1 10`  ; do ( cat linux|nc 127.0.0.1 999 -q 1 & ) ; echo -n . ; done
-	for i in `seq 1 10`  ; do ( ./tcpclient -a 127.0.0.1 -p 999 -f linux & ) ; echo -n . ; done
+	for i in `seq 1 10`  ; do ( ./tcpclient -i 127.0.0.1 -p 999 -f linux & ) ; echo -n . ; done
 	sleep 2.5s
 	ps axjf
 	tail -f /var/log/syslog
