@@ -62,6 +62,7 @@ int skListener;
 #define ER_CANT_READ_CONFIG_EXEC_ARGS	11	// не читаются аргументы exec из конфига
 #define ER_CANT_READ_CONFIG_GROUPNAME	12	// не читается groupname из конфига
 #define ER_CANT_READ_CONFIG_LOGLEVEL	13	// не читается loglevel из конфига
+#define	ER_ALREADY_RUNNING		16	// уже запущен
 #define ER_CHILD_FAILED		17	// внешняя команда завершилась с ошибкой
 #define ER_CANT_SETGID		18	// не меняется gid
 #define ER_CANT_SETUID		19	// не меняется uid
@@ -87,7 +88,7 @@ char str_errors[27][1024]= {
   "Can't read 'loglevel' from config file",
   "",
   "", // 15
-  "",
+  "Daemon already running",
   "Child process failed",
   "Can't change GID of process",
   "Can't change UID of process",
@@ -218,6 +219,36 @@ int parseConfig(char *path) {
 
   if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "configuration complete");
 
+  return 0;
+}
+
+////////////////////////////////
+//
+//  поиск предыдущей копии демона
+//
+int alreadyRunning() {
+  char buf[1024];
+  int pid;
+  FILE *fd;
+  memset(&buf, 0, sizeof(buf));
+  // берём пид из /var/run
+  if (NULL != (fd = fopen(daemon_pid, "r"))) {
+    fgets(buf, sizeof(buf), fd);
+    fclose(fd);
+    pid = atoi(buf);
+    if (0 >= pid) return 1;
+   }
+  else {
+    return 0;
+   }
+  // смотрим процесс в /proc
+  memset(&buf, 0, sizeof(buf));
+  snprintf(buf, sizeof(buf), "/proc/%d/status", pid);
+  if (NULL != (fd = fopen(buf, "r"))) {
+    fgets(buf, sizeof(buf), fd);
+    fclose(fd);
+    return 1;
+   }
   return 0;
 }
 

@@ -6,6 +6,7 @@
 //
 int main(int argc, char *argv[]) {
   char buf[2048];
+  int fl_status = 0;
 
   // инициализируем переменные
   int fl_filename = 0;
@@ -49,48 +50,73 @@ int main(int argc, char *argv[]) {
   if ((0 == fl_address)&&(0 == fl_fqdn)) quit(ER_CONFIG_NOADDRESS);
   if ((1 == fl_address)&&(1 == fl_fqdn)) quit(ER_CONFIG_TOOMANYADDRESSES);
 
+// в бесконечном цикле пытаемся отправить файл
+  do {
+    fl_status = 0;
+    // открываем файл
+    if (! (file_id = fopen(filename, "r")) ) {
+      message(ER_CANT_OPENFILE);
+      continue;
+     }
 
-  // открываем файл
-  if (! (file_id = fopen(filename, "r")) ) quit(ER_CANT_OPENFILE);
+    // открываем сокет
+    sock_id = socket(AF_INET, SOCK_STREAM, 0);
+    if (-1 == sock_id) {
+      message(ER_CANT_CREATE_SOCKET);
+      continue;
+     }
 
-  // открываем сокет
-  sock_id = socket(AF_INET, SOCK_STREAM, 0);
-  if (-1 == sock_id) quit(ER_CANT_CREATE_SOCKET);
+    // по ип или
+    if (1 == fl_address) {
+      struct sockaddr_in addr;
+      addr.sin_port = htons(remote_port);
+      addr.sin_family = AF_INET;
+      addr.sin_addr.s_addr = inet_addr(remote_address);
+      if (connect(sock_id, (struct sockaddr *)&addr, sizeof(addr))) {
+        message(ER_CANT_CONNECT);
+        continue;
+       }
+     }
+    // по имени
+    if (1 == fl_fqdn) {
+      int status;
+      char sport[16];
+      struct addrinfo hints;
+      struct addrinfo *report;
+      memset(&hints, 0, sizeof(hints));
+      hints.ai_family = AF_INET;
+      hints.ai_socktype = SOCK_STREAM;
+      hints.ai_flags = AI_PASSIVE;
+      snprintf(sport, sizeof(sport), "%d", remote_port);
+      if (0 != (status = getaddrinfo(remote_fqdn, sport, &hints, &report)) ) {
+        message(ER_CANT_CONNECT);
+        continue;
+       }
+      if (connect(sock_id, report->ai_addr, report->ai_addrlen)) {
+        message(ER_CANT_CONNECT);
+        continue;
+       }
+      freeaddrinfo(report);
+     }
 
-  // по ип или
-  if (1 == fl_address) {
-    struct sockaddr_in addr;
-    addr.sin_port = htons(remote_port);
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(remote_address);
-    if (connect(sock_id, (struct sockaddr *)&addr, sizeof(addr))) quit(ER_CANT_CONNECT);
-   }
-  // по имени
-  if (1 == fl_fqdn) {
-    int status;
-    char sport[16];
-    struct addrinfo hints;
-    struct addrinfo *report;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;
-    snprintf(sport, sizeof(sport), "%d", remote_port);
-    if (0 != (status = getaddrinfo(remote_fqdn, sport, &hints, &report)) ) quit(ER_CANT_CONNECT);
-    if (connect(sock_id, report->ai_addr, report->ai_addrlen)) quit(ER_CANT_CONNECT);
-    freeaddrinfo(report);
-   }
+    // шлём файл
+    fl_status = 1;
+    while (!feof(file_id)||(0 == fl_status)) {
+      int cntr = fread(&buf, 1, sizeof(buf), file_id);
+      if ( -1 == send(sock_id, &buf, cntr, 0)) {
+        message(ER_ERROR_ON_SEND);
+        fl_status = 0;
+        continue;
+       }
+     }
+    if (0 == fl_status) continue;
 
-  // шлём файл
-  while (!feof(file_id)) {
-    int cntr = fread(&buf, 1, sizeof(buf), file_id);
-    if ( -1 == send(sock_id, &buf, cntr, 0)) quit(ER_ERROR_ON_SEND);
-   }
-
-  // закрываем сокет и файл
-  shutdown(sock_id, SHUT_RDWR);
-  close(sock_id);
-  fclose(file_id);
+    // закрываем сокет и файл
+    shutdown(sock_id, SHUT_RDWR);
+    close(sock_id);
+    fclose(file_id);
+    fl_status = 1;
+  } while ( 0 == fl_status);
 
   // выход
   return 0;

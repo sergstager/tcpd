@@ -64,9 +64,9 @@ void printUsage(char *argv[]) {
 
 ///////////////////////////////
 //
-//  функция завершения демона
+//  функция сообщения об ошибке
 //
-void quit(int error) {
+void message(int error) {
   if (sock_id) {
     shutdown(sock_id, SHUT_RDWR);
     close(sock_id);
@@ -79,6 +79,15 @@ void quit(int error) {
     printf("%s\n", str_errors[error]);
 //    printf("%s (%d: %s)\n", str_errors[error], errno, strerror(errno));
    }
+  sleep(3);
+}
+
+///////////////////////////////
+//
+//  функция завершения демона
+//
+void quit(int error) {
+  message(error);
   exit(error);
 }
 

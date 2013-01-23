@@ -51,7 +51,7 @@ int main(int argc, char *argv[]) {
   if ( (config_status = parseConfig(daemon_config)) ) quit(config_status);
 
   // ищем другого демона, уже запущенного
-  // FIXME
+  if (0 != alreadyRunning()) quit(ER_ALREADY_RUNNING);
 
   // если надо - уходим в демона
   pid_t pid,sid;
@@ -71,6 +71,7 @@ int main(int argc, char *argv[]) {
   else {
     syslog(LOG_INFO, "start in foreground mode");
    }
+
   // сохраняем пид
   pid = getpid();
   FILE *fd;
