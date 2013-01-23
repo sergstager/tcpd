@@ -10,21 +10,17 @@ void mainLoop() {
   ns = sizeof(naddr);
   // создаём сокет
   skListener = socket(AF_INET, SOCK_STREAM, 0);
-  if (-1 == skListener) {
-    quit(ER_CANT_CREATE_SOCKET);
-   }
+  if (-1 == skListener) quit(ER_CANT_CREATE_SOCKET);
 
   //  привязываем сокет
   int yes = 1;
-  if ( setsockopt(skListener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1 ) {
-    quit(ER_CANT_BIND);
-   }
+  if ( setsockopt(skListener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1 ) quit(ER_CANT_BIND);
+
   addr.sin_family = AF_INET;
   addr.sin_port = htons(daemon_port);
   addr.sin_addr.s_addr = inet_addr(daemon_address); //INADDR_ANY;
-  if (-1 == bind(skListener, (struct sockaddr *)&addr, sizeof(addr))) {
-    quit(ER_CANT_BIND);
-   }
+  if (-1 == bind(skListener, (struct sockaddr *)&addr, sizeof(addr))) quit(ER_CANT_BIND);
+  if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "bind to %s:%d", daemon_address, daemon_port);
 
   // здесь меняем id (тк порты ниже 1024 не рут создать не может)
   // сначала gid, потомучто потом уже не будет прав
@@ -34,11 +30,11 @@ void mainLoop() {
   struct passwd *pswd = getpwnam(daemon_username);
   if (!pswd) quit(ER_CANT_SETUID);
   if (setreuid(pswd->pw_uid, pswd->pw_uid)) quit(ER_CANT_SETUID);
+  if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "reduce privileges to %s:%s", daemon_username, daemon_groupname);
 
   // создаём очередь
-  if (-1 == listen(skListener, MAX_CONNECTION)) {
-    quit(ER_CANT_LISTEN);
-   }
+  if (-1 == listen(skListener, MAX_CONNECTION)) quit(ER_CANT_LISTEN);
+
 
   for (;;) {
     pid_t pid, sid;
@@ -49,10 +45,7 @@ void mainLoop() {
 
     // получаем соединение
     sock_id = accept(skListener, (struct sockaddr *)&naddr, &ns);
-    if (-1 == sock_id) {
-      quit(ER_CANT_ACCEPT);
-     }
-//    syslog(LOG_WARNING, "OK ip: %s", (char *)inet_ntoa(naddr.sin_addr));
+    if (-1 == sock_id) quit(ER_CANT_ACCEPT);
 
     // форкаемся
     pid = fork();
@@ -69,18 +62,20 @@ void mainLoop() {
       strcpy(tmpfn, daemon_workdir);
       strcat(tmpfn, TMP_TEMPLATE);
       mktemp(tmpfn);
+      time_t begin_transfer = time(NULL);
       if ( (fd = fopen(tmpfn, "w")) ) {
+        syslog(LOG_INFO, "connect from ip: %s, trying to write to file %s", (char *)inet_ntoa(naddr.sin_addr), tmpfn);
         // в цикле читаем и пишем в файл
         for (;;) {
           cntr = recv(sock_id, buf, sizeof(buf)-1, 0);
           if (0 != cntr) {
             if (-1 == fwrite(buf, 1, cntr, fd)) {
-              syslog(LOG_WARNING, "fail write \"%s\" with %s", buf, strerror(errno));
+              if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "fail write to %s with %s", tmpfn, strerror(errno));
              }
            }
           if (0 == cntr) break;
           if (-1 == cntr) {
-            syslog(LOG_WARNING, "fail socket %d with %s", sock_id, strerror(errno));
+            if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "fail socket %d with %s", sock_id, strerror(errno));
             break;
            }
          }
@@ -88,13 +83,15 @@ void mainLoop() {
         fclose(fd);
        }
       else {
-        syslog(LOG_WARNING, "fail file %d with %s", (int)fd, strerror(errno));
+        if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "fail file %s(%d) with %s", tmpfn, (int)fd, strerror(errno));
        }
+      // 
       // закрываем сокет
       shutdown(sock_id, SHUT_RDWR);
       close(sock_id);
       sock_id = -1;
-      syslog(LOG_WARNING, "file %s loaded", tmpfn);
+      time_t end_transfer = time(NULL);
+      syslog(LOG_INFO, "file %s loaded in %lu seconds", tmpfn, (long int)end_transfer-begin_transfer);
       // новый процесс
       // argv[] нового процесса с путём до команды в [0]
       char *newargv[MAX_ARGV_COUNT];
@@ -105,6 +102,7 @@ void mainLoop() {
       int i1 = 1;
       char *s1;
 
+      if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "exec %s %s", daemon_exec, daemon_exec_args);
       s1 = strtok_r(daemon_exec_args, delimiters, &tmpbuf);
       while ((NULL != s1) && (i1 < (MAX_ARGV_COUNT-1))) {
         // если встречается "%s", то оно заменяется на имя временного файла

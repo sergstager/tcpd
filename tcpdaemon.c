@@ -18,6 +18,8 @@ int main(int argc, char *argv[]) {
   daemon_port = 999;
   skListener = 0;
 
+  openlog("tcpdaemon", LOG_PID, LOG_DAEMON);
+
   // обработчики сигналов
   signal(SIGCHLD, signalHandler);
   signal(SIGHUP, signalHandler);
@@ -45,8 +47,6 @@ int main(int argc, char *argv[]) {
      }
    }
 
-  // ищем конфиг
-  // FIXME
   // парсим конфиг
   if ( (config_status = parseConfig(daemon_config)) ) quit(config_status);
 
@@ -66,12 +66,21 @@ int main(int argc, char *argv[]) {
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
+    syslog(LOG_INFO, "start in daemon mode");
+   }
+  else {
+    syslog(LOG_INFO, "start in foreground mode");
    }
   // сохраняем пид
   pid = getpid();
-  FILE *fd = fopen(daemon_pid, "w");
-  fprintf(fd, "%d\n", pid);
-  fclose(fd);
+  FILE *fd;
+  if (NULL != (fd = fopen(daemon_pid, "w"))) {
+    fprintf(fd, "%d\n", pid);
+    fclose(fd);
+   }
+  else {
+    if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "cannot save %s file", daemon_pid);
+   }
 
   // в главный цикл
   mainLoop();

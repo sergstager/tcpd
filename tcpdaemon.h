@@ -17,6 +17,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <ctype.h>
+#include <time.h>
 
 //  переменные конфига
 char daemon_config[1024];
@@ -28,7 +29,7 @@ char daemon_groupname[256];
 char daemon_address[16];
 char daemon_exec[1024];
 char daemon_exec_args[1024];
-int config_status, daemon_port;
+int config_status, daemon_port, daemon_loglevel;
 
 // флаг демонистости:
 //   1 - работать как демон
@@ -60,6 +61,7 @@ int skListener;
 #define ER_CANT_READ_CONFIG_EXEC	10	// не читается exec из конфига
 #define ER_CANT_READ_CONFIG_EXEC_ARGS	11	// не читаются аргументы exec из конфига
 #define ER_CANT_READ_CONFIG_GROUPNAME	12	// не читается groupname из конфига
+#define ER_CANT_READ_CONFIG_LOGLEVEL	13	// не читается loglevel из конфига
 #define ER_CHILD_FAILED		17	// внешняя команда завершилась с ошибкой
 #define ER_CANT_SETGID		18	// не меняется gid
 #define ER_CANT_SETUID		19	// не меняется uid
@@ -82,7 +84,7 @@ char str_errors[27][1024]= {
   "Can't read 'exec' from config file", // 10
   "Can't read 'exec_args' from config file",
   "Can't read 'groupname' from config file",
-  "",
+  "Can't read 'loglevel' from config file",
   "",
   "", // 15
   "",
@@ -115,11 +117,11 @@ void printUsage(char *argv[]) {
 //  функция завершения демона
 //
 void quit(int err) {
-  if(err) {
-    syslog(LOG_WARNING, "error %d: %s", err, str_errors[err]);
-    printf("%s\n", str_errors[err]);
+  if (err) {
+    if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "error %d: %s", err, str_errors[err]);
+    if (daemonize) printf("error %d: %s\n", err, str_errors[err]);
    }
-  if(skListener) {
+  if (skListener) {
     shutdown(skListener, SHUT_RDWR);
     close(skListener);
    }
@@ -133,21 +135,20 @@ void quit(int err) {
 void signalHandler(int sig) {
   switch (sig) {
     case SIGHUP:
-      syslog(LOG_WARNING, "recieved %s signal", strsignal(sig));
-      break;
     case SIGINT:
-      syslog(LOG_WARNING, "recieved %s signal", strsignal(sig));
+      syslog(LOG_INFO, "terminated");
+      quit(0);
       break;
     case SIGQUIT:
     case SIGTERM:
-      syslog(LOG_WARNING, "recieved %s signal", strsignal(sig));
+      syslog(LOG_INFO, "stop");
       quit(0);
       break;
     case SIGCHLD:
       waitpid(-1,0,WNOHANG);
       break;
     default:
-      syslog(LOG_WARNING, "recieved %s signal", strsignal(sig));
+//      syslog(LOG_WARNING, "recieved %s signal", strsignal(sig));
       break;
    }
 }
@@ -200,6 +201,7 @@ char *config_getValue(const char *path, const char *key, char *val) {
 //
 int parseConfig(char *path) {
   char port[32];
+  memset(&port, 0, sizeof(port));
 
   if (!config_getValue(path, "pid", daemon_pid)) return ER_CANT_READ_CONFIG_PID;
   if (!config_getValue(path, "workdir", daemon_workdir)) return ER_CANT_READ_CONFIG_WORKDIR;
@@ -210,6 +212,11 @@ int parseConfig(char *path) {
   if (!config_getValue(path, "exec_args", daemon_exec_args)) return ER_CANT_READ_CONFIG_EXEC_ARGS;
   if (!config_getValue(path, "port", port)) return ER_CANT_READ_CONFIG_PORT;
   daemon_port=atoi(port);
+  memset(&port, 0, sizeof(port));
+  if (!config_getValue(path, "loglevel", port)) return ER_CANT_READ_CONFIG_LOGLEVEL;
+  daemon_loglevel=atoi(port);
+
+  if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "configuration complete");
 
   return 0;
 }
