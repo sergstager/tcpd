@@ -54,6 +54,9 @@ int main(int argc, char *argv[]) {
   // ищем другого демона, уже запущенного
   if (0 != alreadyRunning()) quit(ER_ALREADY_RUNNING);
 
+  // открываем лог
+  if (NULL == (logfd = fopen(daemon_log, "a"))) quit(ER_LOGFILE);
+
   // если надо - уходим в демона
   pid_t pid,sid;
   if (daemonize) {
@@ -67,10 +70,10 @@ int main(int argc, char *argv[]) {
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
-    syslog(LOG_INFO, "start in daemon mode");
+    filelog("start in daemon mode");
    }
   else {
-    syslog(LOG_INFO, "start in foreground mode");
+    filelog("start in foreground mode");
    }
 
   // сохраняем пид
@@ -81,7 +84,7 @@ int main(int argc, char *argv[]) {
     fclose(fd);
    }
   else {
-    if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "cannot save %s file", daemon_pid);
+    if (daemon_loglevel >= 1) filelogs("cannot save pid file %s", daemon_pid);
    }
 
   // в главный цикл

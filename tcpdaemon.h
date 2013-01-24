@@ -46,6 +46,9 @@ int skListener;
 // максимальное количество аргументов внешней команды
 #define MAX_ARGV_COUNT	10
 
+// дескриптор файла лога
+FILE *logfd;
+
 /////////////////////////////////
 //
 //  коды ошибок
@@ -64,7 +67,8 @@ int skListener;
 #define ER_CANT_READ_CONFIG_GROUPNAME	12	// не читается groupname из конфига
 #define ER_CANT_READ_CONFIG_LOGLEVEL	13	// не читается loglevel из конфига
 #define ER_CANT_READ_CONFIG_LOG		14	// не читается logfile из конфига
-#define	ER_ALREADY_RUNNING		16	// уже запущен
+#define ER_ALREADY_RUNNING		16	// уже запущен
+#define ER_LOGFILE			15	// не открылся лог файл
 #define ER_CHILD_FAILED		17	// внешняя команда завершилась с ошибкой
 #define ER_CANT_SETGID		18	// не меняется gid
 #define ER_CANT_SETUID		19	// не меняется uid
@@ -89,7 +93,7 @@ char str_errors[24][1024]= {
   "Can't read 'groupname' from config file",
   "Can't read 'loglevel' from config file",
   "Can't read 'log' from config file",
-  "", // 15
+  "Can't open log file", // 15
   "Daemon already running",
   "Child process failed",
   "Can't change GID of process",
@@ -99,6 +103,80 @@ char str_errors[24][1024]= {
   "Can't listen socket",
   "Can't accept socket"
 };
+
+////////////////////////////////
+//
+//  вывод в лог
+//
+void filelogt() {
+  char buf[64];
+  struct tm lt;
+  time_t tt = time(NULL);
+  localtime_r(&tt, &lt);
+  strftime(buf, sizeof(buf), "%F %T: ", &lt);
+  fputs(buf, logfd);
+  return;
+}
+void filelogn() {
+  char buf[3] = "\n";
+  fputs(buf, logfd);
+  fflush(logfd);
+  return;
+}
+void filelog(char *msg) {
+  char buf[1024];
+  snprintf(buf, sizeof(buf), msg);
+  filelogt();
+  fputs(buf, logfd);
+  filelogn();
+  fflush(logfd);
+  return;
+}
+void filelogs(char *msg, char *s1) {
+  char buf[1024];
+  snprintf(buf, sizeof(buf), msg, s1);
+  filelogt();
+  fputs(buf, logfd);
+  filelogn();
+  fflush(logfd);
+  return;
+}
+void filelogsd(char *msg, char *s1, int d) {
+  char buf[1024];
+  snprintf(buf, sizeof(buf), msg, s1, d);
+  filelogt();
+  fputs(buf, logfd);
+  filelogn();
+  fflush(logfd);
+  return;
+}
+void filelogslu(char *msg, char *s1, long int d) {
+  char buf[1024];
+  snprintf(buf, sizeof(buf), msg, s1, d);
+  filelogt();
+  fputs(buf, logfd);
+  filelogn();
+  fflush(logfd);
+  return;
+}
+void filelogslulu(char *msg, char *s1, long int d, long int d2) {
+  char buf[1024];
+  snprintf(buf, sizeof(buf), msg, s1, d, d2);
+  filelogt();
+  fputs(buf, logfd);
+  filelogn();
+  fflush(logfd);
+  return;
+}
+void filelogss(char *msg, char *s1, char *s2) {
+  char buf[1024];
+  snprintf(buf, sizeof(buf), msg, s1, s2);
+  filelogt();
+  fputs(buf, logfd);
+  filelogn();
+  fflush(logfd);
+  return;
+}
 
 ///////////////////////////////
 //
@@ -118,8 +196,8 @@ void printUsage(char *argv[]) {
 //
 void quit(int err) {
   if (err) {
-    if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "error %d: %s", err, str_errors[err]);
-    if (!daemonize) printf("error %d: %s\n", err, str_errors[err]);
+    if (daemon_loglevel >= 1) filelogsd("error %s (%d)", str_errors[err], err);
+    if (!daemonize) printf("error %s (%d)\n", str_errors[err], err);
    }
   if (skListener) {
     shutdown(skListener, SHUT_RDWR);
@@ -136,12 +214,12 @@ void signalHandler(int sig) {
   switch (sig) {
     case SIGHUP:
     case SIGINT:
-      syslog(LOG_INFO, "terminated");
+      filelog("terminated");
       quit(0);
       break;
     case SIGQUIT:
     case SIGTERM:
-      syslog(LOG_INFO, "stop");
+      filelog("stop");
       quit(0);
       break;
     case SIGCHLD:
@@ -217,7 +295,7 @@ int parseConfig(char *path) {
   if (!config_getValue(path, "loglevel", port)) return ER_CANT_READ_CONFIG_LOGLEVEL;
   daemon_loglevel=atoi(port);
 
-  if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "configuration complete");
+//  if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "configuration complete");
 
   return 0;
 }
