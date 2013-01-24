@@ -101,7 +101,9 @@ void mainLoop() {
       int i1 = 1;
       char *s1;
 
-      if (daemon_loglevel >= 1) filelogss("exec %s %s", daemon_exec, daemon_exec_args);
+      char tmpfnbuf[1024];
+      snprintf(tmpfnbuf, sizeof(tmpfnbuf), daemon_exec_args, tmpfn);
+      if (daemon_loglevel >= 1) filelogss("exec %s %s", daemon_exec, tmpfnbuf);
       s1 = strtok_r(daemon_exec_args, delimiters, &tmpbuf);
       while ((NULL != s1) && (i1 < (MAX_ARGV_COUNT-1))) {
         // если встречается "%s", то оно заменяется на имя временного файла
