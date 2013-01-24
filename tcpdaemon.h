@@ -28,6 +28,7 @@ char daemon_username[256];
 char daemon_groupname[256];
 char daemon_address[16];
 char daemon_exec[1024];
+char daemon_log[1024];
 char daemon_exec_args[1024];
 int config_status, daemon_port, daemon_loglevel;
 
@@ -62,6 +63,7 @@ int skListener;
 #define ER_CANT_READ_CONFIG_EXEC_ARGS	11	// не читаются аргументы exec из конфига
 #define ER_CANT_READ_CONFIG_GROUPNAME	12	// не читается groupname из конфига
 #define ER_CANT_READ_CONFIG_LOGLEVEL	13	// не читается loglevel из конфига
+#define ER_CANT_READ_CONFIG_LOG		14	// не читается logfile из конфига
 #define	ER_ALREADY_RUNNING		16	// уже запущен
 #define ER_CHILD_FAILED		17	// внешняя команда завершилась с ошибкой
 #define ER_CANT_SETGID		18	// не меняется gid
@@ -71,7 +73,7 @@ int skListener;
 #define ER_CANT_LISTEN		22	// не прослушивается
 #define ER_CANT_ACCEPT		23	// не цепляется новое соединение
 
-char str_errors[27][1024]= {
+char str_errors[24][1024]= {
   "all OK",
   "Can't fork",
   "Can't setsid",
@@ -86,7 +88,7 @@ char str_errors[27][1024]= {
   "Can't read 'exec_args' from config file",
   "Can't read 'groupname' from config file",
   "Can't read 'loglevel' from config file",
-  "",
+  "Can't read 'log' from config file",
   "", // 15
   "Daemon already running",
   "Child process failed",
@@ -95,10 +97,7 @@ char str_errors[27][1024]= {
   "Can't create socket", // 20
   "Can't bind socket",
   "Can't listen socket",
-  "Can't accept socket",
-  "",
-  "", // 25
-  ""
+  "Can't accept socket"
 };
 
 ///////////////////////////////
@@ -120,7 +119,7 @@ void printUsage(char *argv[]) {
 void quit(int err) {
   if (err) {
     if (daemon_loglevel >= 1) syslog(LOG_DEBUG, "error %d: %s", err, str_errors[err]);
-    if (daemonize) printf("error %d: %s\n", err, str_errors[err]);
+    if (!daemonize) printf("error %d: %s\n", err, str_errors[err]);
    }
   if (skListener) {
     shutdown(skListener, SHUT_RDWR);
@@ -210,6 +209,7 @@ int parseConfig(char *path) {
   if (!config_getValue(path, "groupname", daemon_groupname)) return ER_CANT_READ_CONFIG_GROUPNAME;
   if (!config_getValue(path, "address", daemon_address)) return ER_CANT_READ_CONFIG_ADDRESS;
   if (!config_getValue(path, "exec", daemon_exec)) return ER_CANT_READ_CONFIG_EXEC;
+  if (!config_getValue(path, "log", daemon_log)) return ER_CANT_READ_CONFIG_LOG;
   if (!config_getValue(path, "exec_args", daemon_exec_args)) return ER_CANT_READ_CONFIG_EXEC_ARGS;
   if (!config_getValue(path, "port", port)) return ER_CANT_READ_CONFIG_PORT;
   daemon_port=atoi(port);
